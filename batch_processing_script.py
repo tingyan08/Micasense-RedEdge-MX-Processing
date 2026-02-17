@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
     pan_sharpen = False
     use_dls = True # Downwelling Light Sensor (DLS)
-    overwrite = False  # can be set to False to continue interrupted processing
+    overwrite = True  # can be set to False to continue interrupted processing
     generateThumbnails = True # set to False to skip generating RGB thumbnails, which can be time consuming for large datasets
 
     image_path = args.path / 'Images'
