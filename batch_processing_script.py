@@ -12,36 +12,22 @@ import micasense.capture as capture
 import micasense.imageset as imageset
 import cv2
 
-# python batch_processing_script.py --imagepath B1\Images --outputpath B1\Processed --panelpath B1\Panel
 # Camera models: RedEdge-MX
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        prog='MicaSenseBatchProcessing',
-        description='Create aligned, radiometrically corrected image stacks from raw MicaSense imagery',
-        epilog='epilog'
-    )
-
-    parser.add_argument('--path', required=True, type=Path)
-
-    args = parser.parse_args()
-    return args
 
 
 if __name__ == "__main__":
-    # args = parse_args()
-    args = argparse.Namespace()
-    args.path = Path("B1")
 
+    root_path = Path("091425_Wallpe")
 
     pan_sharpen = False
     use_dls = True # Downwelling Light Sensor (DLS)
     overwrite = True  # can be set to False to continue interrupted processing
     generateThumbnails = True # set to False to skip generating RGB thumbnails, which can be time consuming for large datasets
 
-    image_path = args.path / 'Images'
-    panel_path = args.path / 'Panel'
-    outputPath = args.path / 'Processed'
+    image_path = root_path / 'Images'
+    panel_path = root_path / 'Panel'
+    outputPath = root_path / 'Processed'
 
 
     panelNames = list(panel_path.glob('IMG_0000_*.tif'))
@@ -104,7 +90,7 @@ if __name__ == "__main__":
     geojson_data = df_to_geojson(df, columns[3:], lat='latitude', lon='longitude')
 
     warp_matrices = None
-    warp_matrices_filename = args.path / (cam_serial + "_warp_matrices_opencv.npy")
+    warp_matrices_filename = root_path / (cam_serial + "_warp_matrices_opencv.npy")
 
     if warp_matrices_filename.is_file():
         print("Found existing warp matrices for camera", cam_serial)
@@ -154,12 +140,9 @@ if __name__ == "__main__":
     except NameError:
         irradiance = None
 
-
-
-
     for i, cap in tqdm(enumerate(imgset.captures), total=len(imgset.captures), desc="Processing captures"):
-        outputFilename = cap.uuid + '.tif'
-        thumbnailFilename = cap.uuid + '.jpg'
+        outputFilename = cap.images[0].img_name + '.tif'
+        thumbnailFilename = cap.images[0].img_name + '.jpg'
         fullOutputPath = os.path.join(capturePath, outputFilename)
         fullThumbnailPath = os.path.join(thumbnailPath, thumbnailFilename)
         if (not os.path.exists(fullOutputPath)) or overwrite:

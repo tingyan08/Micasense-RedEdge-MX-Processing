@@ -3,7 +3,6 @@ import numpy as np
 import geopandas as gpd
 import micasense.metadata as metadata
 from pathlib import Path
-from scipy.spatial import KDTree
 from osgeo import gdal
 from tqdm import tqdm
 
@@ -84,17 +83,6 @@ def get_features(path, sift):
     return kp, des, img_stack
 
 
-def roi_blendering(mosaic, warped):
-    # Find bounding box of non-zero pixels in the warped image
-    pts = np.argwhere(np.any(warped > 0, axis=2))
-    if pts.size > 0:
-        y_min, x_min = pts.min(axis=0)
-        y_max, x_max = pts.max(axis=0)
-        roi_canvas = mosaic[y_min:y_max+1, x_min:x_max+1]
-        roi_new = warped[y_min:y_max+1, x_min:x_max+1]
-        mask = np.any(roi_new > 0, axis=2)
-        roi_canvas[mask] = roi_new[mask]
-    return mosaic
 
 if __name__ == "__main__":
     # Define paths
@@ -109,9 +97,9 @@ if __name__ == "__main__":
     GSD = calculate_gsd(root_folder) / 100  # Convert cm/pixel to m/pixel for geospatial calculations
 
     minx, miny, maxx, maxy = gdf_utm.total_bounds
-    padding = 1000
-    origin_x = minx - (padding * GSD)
-    origin_y = maxy + (padding * GSD) 
+    pad_m = 10
+    origin_x = minx - pad_m
+    origin_y = maxy + pad_m 
 
     W2P = np.array([
         [1/GSD, 0, -origin_x/GSD],
@@ -119,8 +107,8 @@ if __name__ == "__main__":
         [0, 0, 1]
     ], dtype=np.float32)
 
-    canvas_w = int((maxx - minx) / GSD) + 2000
-    canvas_h = int((maxy - miny) / GSD) + 2000
+    canvas_w = int((maxx - minx + 2*pad_m) / GSD)
+    canvas_h = int((maxy - miny + 2*pad_m) / GSD)
 
     mosaic_ms = np.zeros((canvas_h, canvas_w, 5), dtype=np.uint16)
     mosaic_rgb = np.zeros((canvas_h, canvas_w, 3), dtype=np.uint8)
@@ -140,7 +128,11 @@ if __name__ == "__main__":
 
 
     for i in tqdm(range(len(gdf)), desc="GPS Stacking"):
-        stack_curr, _ = load_geotiff(gdf.iloc[i]['img_path'])
+        image_path = gdf.iloc[i]['img_path']
+        meta = metadata.Metadata(image_path)
+        print(meta.get_all())
+        print(f"Processing image: {image_path}")
+        stack_curr, _ = load_geotiff(image_path)
         if stack_curr is None: continue
         h, w = stack_curr.shape[:2]
 
@@ -148,20 +140,14 @@ if __name__ == "__main__":
         T_gps = np.array([[1, 0, gdf_utm.iloc[i].geometry.x], 
                           [0, 1, gdf_utm.iloc[i].geometry.y], 
                           [0, 0, 1]])
-        T_center = np.array([[1, 0, -w/2], [0, 1, -h/2], [0, 0, 1]])
+        T_center = np.array([[1, 0, -h/2], [0, 1, -w/2], [0, 0, 1]])
 
         M_global = W2P @ T_gps @ T_center
 
-        # # Stacking 16-bit Multispectral
-        # warped_ms = cv2.warpPerspective(stack_curr, M_global, (canvas_w, canvas_h))
-        # mosaic_ms = roi_blendering(mosaic_ms, warped_ms)
 
-
-        # E. Stacking 8-bit RGB Visualization
-        # Micasense RedEdge-MX indices: R=2, G=1, B=0
-        rgb_8bit = np.clip(stack_curr[:, :, [2, 1, 0]] / 32768 * 255, 0, 255).astype('uint8')
-        warped_rgb = cv2.warpPerspective(rgb_8bit, M_global, (canvas_w, canvas_h))
-        mosaic_rgb = roi_blendering(mosaic_rgb, warped_rgb)
+        warped_rgb = cv2.warpPerspective(rgb_8bit, M_global, (canvas_w, canvas_h), flags=cv2.INTER_LINEAR)
+        mask_rgb = np.any(warped_rgb > 0, axis=2)
+        mosaic_rgb[mask_rgb] = warped_rgb[mask_rgb]
 
         # Save rgb steps
         rgb_output_path = os.path.join(rgb_path, f"mosaic_step_{i:04d}.jpg")
@@ -180,12 +166,6 @@ if __name__ == "__main__":
     # ds = None
     # print(f"Saved final multispectral mosaic to: {mosaic_out}")
 
-
-    # Save final RGB mosaic for visualization
-    mosaic_rgb = cv2.normalize(mosaic_rgb, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX).astype(np.uint8)
-    rgb_mosaic_output_path = os.path.join(mosaic_path, "final_mosaic_rgb.jpg")
-    cv2.imwrite(rgb_mosaic_output_path, mosaic_rgb)
-    print(f"Saved final RGB mosaic to: {rgb_mosaic_output_path}")
 
         
 
