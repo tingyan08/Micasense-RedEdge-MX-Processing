@@ -86,6 +86,7 @@ if __name__ == "__main__":
     for i, row in selected_gdf.iterrows():
         print(f"AOI {row['id']}")
         joined_gdf = gpd.sjoin(capture_gdf,  selected_gdf.iloc[[i]], how="inner", predicate="within")
+        joined_gdf = joined_gdf.drop(columns=["index_right", 'id'])
         print(f"Found {len(joined_gdf)} captures in AOI {row['id']}")
         joined_gdf.to_file(os.path.join(save_path, f"aoi_{row['id']}.geojson"), driver="GeoJSON")
 
