@@ -53,12 +53,6 @@ def compute_footprint_corners(row, ground_altitude, HFOV, VFOV, target_crs):
     rotated_corners = local_corners @ R.T
     return rotated_corners + np.array([row['geometry'].x, row['geometry'].y])
 
-def get_8bit_nir(img_stack):
-    band = img_stack[3, :, :]
-    p2, p98 = np.percentile(band, (2, 98))
-    if p98 > p2:
-        return np.clip((band - p2) / (p98 - p2) * 255, 0, 255).astype('uint8')
-    return np.zeros(band.shape, dtype='uint8')
 
 def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
     aoi_geojson = os.path.join(root_folder, f"Processed/AOI/aoi_{aoi_id}.geojson")
@@ -68,7 +62,7 @@ def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
 
     tiff_path = os.path.join(root_folder, "Processed/capture")
     rgb_path = os.path.join(root_folder, "Processed/thumbnails")
-    save_path = os.path.join(root_folder, f"Processed/stitched/aoi_{aoi_id}_detailed")
+    save_path = os.path.join(root_folder, f"Processed/stitched_detailed")
     os.makedirs(save_path, exist_ok=True)
 
     features, images_8bit, images_full, footprints, full_img_sizes, utm_centers = [], [], [], [], [], []
@@ -90,10 +84,6 @@ def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
         utm_centers.append((row['geometry'].x, row['geometry'].y))
         
         img_rgb = cv.imread(p_rgb)
-        if img_rgb is None:
-            b8 = get_8bit_nir(img_stack)
-            img_rgb = cv.merge([b8, b8, b8])
-        
         images_8bit.append(img_rgb)
         
         # Registration scale
