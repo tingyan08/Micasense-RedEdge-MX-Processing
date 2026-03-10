@@ -1,4 +1,4 @@
-import argparse
+import argparse, time
 import os
 import time, json
 from pathlib import Path
@@ -17,7 +17,7 @@ import cv2
 
 
 if __name__ == "__main__":
-
+    start_time = time.time()
     root_path = Path("091425_Wallpe")
 
     pan_sharpen = False
@@ -152,3 +152,6 @@ if __name__ == "__main__":
                 if generateThumbnails:
                     cap.save_capture_as_rgb(fullThumbnailPath)
         cap.clear_image_data()
+
+    end_time = time.time()
+    print(f"Processing completed in {(end_time - start_time) / 60:.2f} minutes.")

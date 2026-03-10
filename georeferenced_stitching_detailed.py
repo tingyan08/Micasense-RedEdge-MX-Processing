@@ -1,4 +1,4 @@
-import os, sys, math, warnings
+import os, sys, math, warnings, time
 import cv2 as cv
 import numpy as np
 import geopandas as gpd
@@ -55,6 +55,12 @@ def compute_footprint_corners(row, ground_altitude, HFOV, VFOV, target_crs):
 
 
 def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
+    total_start = time.perf_counter()
+
+    def log_step(step_name, step_start):
+        elapsed = time.perf_counter() - step_start
+        print(f"AOI {aoi_id}: {step_name} completed in {elapsed:.2f}s")
+
     aoi_geojson = os.path.join(root_folder, f"Processed/AOI/aoi_{aoi_id}.geojson")
     if not os.path.exists(aoi_geojson): return
     gdf = gpd.read_file(aoi_geojson)
@@ -69,6 +75,7 @@ def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
     finder = cv.SIFT_create()
 
     print(f"AOI {aoi_id}: Loading data...")
+    step_start = time.perf_counter()
     current_work_scale = 1.0
     for _, row in gdf.iterrows():
         name = row['image_name']
@@ -95,8 +102,10 @@ def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
         HFOV = calculate_fov(m.get_item("EXIF:FocalLength"), img_stack.shape[2])
         VFOV = calculate_fov(m.get_item("EXIF:FocalLength"), img_stack.shape[1])
         footprints.append(compute_footprint_corners(row, ground_altitude, HFOV, VFOV, TARGET_CRS))
+    log_step("Loading data", step_start)
 
     # 2. Matching and Bundle Adjustment
+    step_start = time.perf_counter()
     matcher = cv.detail_BestOf2NearestMatcher(False, 0.3)
     p_matches = matcher.apply2(features)
     matcher.collectGarbage()
@@ -125,6 +134,7 @@ def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
     adjuster.setConfThresh(CONF_THRESH)
     success, cameras = adjuster.apply(features, p_matches, cameras)
     if not success: return
+    log_step("Matching and bundle adjustment", step_start)
 
     # Scale parameters back to full resolution
     compose_scale = 1.0 / current_work_scale
@@ -134,6 +144,7 @@ def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
         cam.ppy *= compose_scale
 
     # 3. Warping
+    step_start = time.perf_counter()
     focals = sorted([cam.focal for cam in cameras])
     warped_image_scale = focals[len(focals) // 2]
     warper = cv.PyRotationWarper('plane', warped_image_scale)
@@ -146,8 +157,10 @@ def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
         sizes.append(roi[2:4])
 
     dst_sz = cv.detail.resultRoi(corners=corners, sizes=sizes)
+    log_step("Warping setup", step_start)
 
     # 4. Seam Finding (8-bit)
+    step_start = time.perf_counter()
     images_warped, masks_warped = [], []
     for i in range(len(cameras)):
         K = cameras[i].K().astype(np.float32)
@@ -160,8 +173,10 @@ def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
     seam_finder = cv.detail.SeamFinder_createDefault(cv.detail.SeamFinder_VORONOI_SEAM)
     images_warped_f = [img.astype(np.float32) for img in images_warped]
     masks_warped = seam_finder.find(images_warped_f, corners, masks_warped)
+    log_step("Seam finding", step_start)
 
     # 5. Composition (Multi-band)
+    step_start = time.perf_counter()
     num_bands = images_full[0].shape[0]
     final_mosaic = np.zeros((num_bands, dst_sz[3], dst_sz[2]), dtype=images_full[0].dtype)
 
@@ -180,9 +195,11 @@ def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
         
         res, _ = blender.blend(None, None)
         final_mosaic[b_idx] = np.clip(res[:, :, 0], 0, 65535).astype(images_full[0].dtype)
+    log_step("Composition and blending", step_start)
 
     # 6. Georeferencing (Multi-center GCPs)
     print(f"AOI {aoi_id}: Generating GCPs from image centers...")
+    step_start = time.perf_counter()
     gcp_list = []
     for i in range(len(cameras)):
         # Local center of image i
@@ -202,13 +219,15 @@ def process_aoi_detailed(aoi_id, root_folder, ground_altitude):
                         count=num_bands, dtype=images_full[0].dtype, crs=TARGET_CRS, 
                         transform=from_gcps(gcp_list)) as dst:
         dst.write(final_mosaic)
+    log_step("Georeferencing and save", step_start)
+    print(f"AOI {aoi_id}: Total processing time {time.perf_counter() - total_start:.2f}s")
     print(f"Saved: {output_file}")
 
 
 if __name__ == "__main__":
     root_folder = "091425_Wallpe"
+    aoi = 5
     panel_dir = os.path.join(root_folder, "Panel")
     panel_file = next(Path(panel_dir).glob("*.tif"))
     ground_alt = metadata.Metadata(panel_file.as_posix()).position()[2]
-    for aoi in range(24):
-        process_aoi_detailed(aoi, root_folder, ground_alt)
+    process_aoi_detailed(aoi, root_folder, ground_alt)
