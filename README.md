@@ -1,4 +1,4 @@
-# Metashape Batch Processing Guide
+# Multispectral Image Preprocessing Pipeline
 
 This repository includes a script, `metashape.py`, that automates Agisoft Metashape processing for multispectral AOI subsets.
 
