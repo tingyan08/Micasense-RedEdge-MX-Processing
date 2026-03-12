@@ -102,4 +102,4 @@ if __name__ == "__main__":
         recorded_info["process_time"].append(process_time)
 
     results_df = pd.DataFrame(recorded_info)
-    results_df.to_csv(os.path.join(root_folder, "Metashape", f"aoi_{aoi_id}", "processing_results.csv"), index=False)
+    results_df.to_csv(os.path.join(root_folder, "Metashape", "processing_results.csv"), index=False)
