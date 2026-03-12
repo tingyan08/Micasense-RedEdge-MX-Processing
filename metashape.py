@@ -2,6 +2,7 @@ import Metashape, os, time
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+import micasense.imageset as imageset
 from pyproj import Transformer
 from aoi_filtering import get_joined_gdf, calculate_characteristics
 
@@ -61,6 +62,20 @@ def metashape_pipeline(doc, images, panels, target_crs, chunk_label=None):
     doc.save()
     print(f"Pipeline complete for {chunk.label}")
 
+def get_capture_gdf(root_folder):
+    if not os.path.exists(os.path.join(root_folder, "imageSet.geojson")):
+        print("imageSet.geojson not found, generating from Images directory...")
+        img_dir = os.path.join(root_folder, "Images")
+        imgset = imageset.ImageSet.from_directory(img_dir)
+        data, columns = imgset.as_nested_lists()
+        capture_gdf = pd.DataFrame.from_records(data, index='timestamp', columns=columns)
+        capture_gdf = gpd.GeoDataFrame(capture_gdf, geometry=gpd.points_from_xy(capture_gdf.longitude, capture_gdf.latitude), crs="EPSG:4326")
+        capture_gdf.to_file(os.path.join(root_folder, "imageSet.geojson"), driver="GeoJSON")
+    else:
+        capture_gdf = gpd.read_file(os.path.join(root_folder, "imageSet.geojson"))
+    return capture_gdf
+
+
 if __name__ == "__main__":
     parent_folder = "Data"
     exp = "091425_Wallpe"
@@ -78,7 +93,7 @@ if __name__ == "__main__":
     transformer = Transformer.from_crs(original_crs, target_crs, always_xy=True)
 
     aoi_df = pd.read_csv(os.path.join(root_folder, "aoi.csv"))
-    capture_gdf = gpd.read_file(os.path.join(root_folder, "Processed/imageSet.json"))
+    capture_gdf = get_capture_gdf(root_folder)
     capture_gdf = capture_gdf.to_crs(target_crs)
 
     recorded_info = {"ratio": [], "num_captures": [], "process_time": []}
