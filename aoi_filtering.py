@@ -42,6 +42,22 @@ def calculate_characteristics(root_folder):
     return gsd, H, W
 
 
+
+def get_joined_gdf(aoi_df, capture_gdf,width_m, height_m, crs_transformer, target_crs, ratio=0.5, aoi_id=0, aoi_size=36):
+    # Expand the aoi 
+    ratio = 0.5
+    selected_polygon = []
+    t_east, t_north = crs_transformer.transform(aoi_df.iloc[aoi_id]['Longitude'], aoi_df.iloc[aoi_id]['Latitude'])
+    expanded_poly = box(t_east - aoi_size/2 - (0.5 - ratio) * width_m, t_north - aoi_size/2 -(0.5 - ratio) * height_m, 
+                        t_east + aoi_size/2 + (0.5 - ratio) * width_m, t_north + aoi_size/2 + (0.5 - ratio) * height_m)
+    selected_polygon.append({"id": 0, "polygon": expanded_poly, "center": (t_east, t_north)})
+    
+    selected_gdf = gpd.GeoDataFrame(pd.DataFrame(selected_polygon), geometry='polygon', crs=target_crs)
+    joined_gdf = gpd.sjoin(capture_gdf,  selected_gdf.iloc[[0]], how="inner", predicate="within")
+    joined_gdf = joined_gdf.drop(columns=["index_right", 'id'])
+
+    return joined_gdf
+
 if __name__ == "__main__":
     root_folder = "091425_Wallpe"
     gsd_cm, H, W = calculate_characteristics(root_folder)
