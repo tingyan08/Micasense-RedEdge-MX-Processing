@@ -1,13 +1,12 @@
-import os, glob
-import json
-from shlex import join
+import os, cv2
 import pandas as pd
 import geopandas as gpd
+from micasense import capture, imageutils
 from micasense import metadata
 from pathlib import Path
+
 from pyproj import Transformer
-from shapely.geometry import Point, box
-from tqdm import tqdm
+from shapely.geometry import box
 
 
 def calculate_characteristics(root_folder):
@@ -26,18 +25,23 @@ def calculate_characteristics(root_folder):
     agl = agl * 100  # Convert AGL to centimeters for GSD calculation
     print(f"Calculated AGL: {agl:.2f} cm")
 
-    # Get aligned image metadata to confirm altitude after processing
-    aligned_file = next((Path(root_folder) / "Processed" / "capture").glob("*.tif"))
-    aligned_meta = metadata.Metadata(aligned_file.resolve().as_posix())
+    # Get aligned image metadata to confirm altitude after processing using first five images
+    imageNames = list(Path(img_dir).glob("IMG_*.tif"))[:5]
+    first_capture = capture.Capture.from_filelist(imageNames)
+    reference_band = 2  # use the Red band as the reference
+    warp_matrices = first_capture.get_warp_matrices(ref_index=reference_band)
+
+    cropped_dimensions, edges = imageutils.find_crop_bounds(first_capture,warp_matrices,reference_band=reference_band)
+    W = cropped_dimensions[2]
+    H = cropped_dimensions[3]
+
+
     # Sensor width and focal length 
-    pixel_size = 1 / aligned_meta.get_item("EXIF:XResolution")  # in mm/pixel
+    pixel_size = 1 / first_capture.images[0].meta.get_item("EXIF:FocalPlaneXResolution")  # in mm/pixel
     print(f"Pixel size: {pixel_size:.4f} mm/pixel")
-    focal_length = aligned_meta.get_item("EXIF:FocalLength")  # in mm
+    focal_length = first_capture.images[0].meta.get_item("EXIF:FocalLength")  # in mm
     print(f"Focal length: {focal_length:.4f} mm")
     gsd = agl * pixel_size / focal_length  # GSD in cm/pixel
-
-    H = aligned_meta.get_item("EXIF:ImageHeight")
-    W = aligned_meta.get_item("EXIF:ImageWidth")
 
     return gsd, H, W
 
@@ -58,7 +62,7 @@ def get_joined_gdf(aoi_df, capture_gdf,width_m, height_m, crs_transformer, targe
     return joined_gdf
 
 if __name__ == "__main__":
-    root_folder = "091425_Wallpe"
+    root_folder = "Data/091425_Wallpe"
     gsd_cm, H, W = calculate_characteristics(root_folder)
     width_m = gsd_cm / 100 * W
     height_m = gsd_cm / 100 * H

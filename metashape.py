@@ -1,3 +1,4 @@
+import glob
 import Metashape, os, time
 import pandas as pd
 import geopandas as gpd
@@ -6,7 +7,7 @@ import micasense.imageset as imageset
 from pyproj import Transformer
 from aoi_filtering import get_joined_gdf, calculate_characteristics
 
-def metashape_pipeline(doc, images, panels, target_crs, chunk_label=None):
+def metashape_pipeline(root_folder, doc, images, panels, target_crs, chunk_label=None):
     chunk = doc.addChunk()
     if chunk_label:
         chunk.label = chunk_label
@@ -59,6 +60,7 @@ def metashape_pipeline(doc, images, panels, target_crs, chunk_label=None):
         ghosting_filter=False,                  # Default is off
         projection=ortho_projection
     )
+    chunk.exportReport(path=os.path.join(root_folder, "Metashape", f"{chunk.label}_report.pdf"))
     doc.save()
     print(f"Pipeline complete for {chunk.label}")
 
@@ -78,7 +80,7 @@ def get_capture_gdf(root_folder):
 
 if __name__ == "__main__":
     parent_folder = "Data"
-    exp = "091425_Wallpe"
+    exp = "091025_Wallpe"
     root_folder = os.path.join(parent_folder, exp)
     aoi_id = 5
 
@@ -92,7 +94,7 @@ if __name__ == "__main__":
     target_crs = "EPSG:32616"  # WGS 84 - UTM zone 16N
     transformer = Transformer.from_crs(original_crs, target_crs, always_xy=True)
 
-    aoi_df = pd.read_csv(os.path.join(root_folder, "aoi.csv"))
+    aoi_df = pd.read_csv(os.path.join(parent_folder, "aoi.csv"))
     capture_gdf = get_capture_gdf(root_folder)
     capture_gdf = capture_gdf.to_crs(target_crs)
 
@@ -107,10 +109,10 @@ if __name__ == "__main__":
         except:
             doc.save(os.path.join(root_folder, "Metashape", f"{exp}.psx"))
         images = [os.path.join(root_folder, "Images", f"{i}_{j}.tif") for i in joined_gdf['image_name'].tolist() for j in range(1, 6)]
-        panels = [os.path.join(root_folder, "Panel", f"IMG_0000_{i}.tif") for i in range(1, 6)]
+        panels = glob.glob(os.path.join(root_folder, "Panel", f"*.tif"))
 
         start_time = time.time()
-        metashape_pipeline(doc, images, panels, target_crs, chunk_label=f"AOI_{aoi_id}_ratio_{ratio:.2f}")
+        metashape_pipeline(root_folder, doc, images, panels, target_crs, chunk_label=f"AOI_{aoi_id}_ratio_{ratio:.2f}")
         process_time = time.time() - start_time
         recorded_info["ratio"].append(ratio)
         recorded_info["num_captures"].append(len(joined_gdf))

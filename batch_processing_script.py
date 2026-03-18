@@ -18,7 +18,7 @@ import cv2
 
 if __name__ == "__main__":
     start_time = time.time()
-    root_path = Path("091425_Wallpe")
+    root_path = Path("Data/091025_Wallpe")
 
     pan_sharpen = False
     use_dls = True # Downwelling Light Sensor (DLS)

@@ -73,8 +73,8 @@ Install Metashape Python API:
 
 ```text
 Data/
+    aoi.csv
     <experiment_name>/
-        aoi.csv
         imageSet.json
         Images/
             <capture_id>_1.tif
