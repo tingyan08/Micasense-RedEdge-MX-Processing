@@ -47,7 +47,7 @@ def calculate_characteristics(root_folder):
 
 
 
-def get_joined_gdf(aoi_df, capture_gdf,width_m, height_m, crs_transformer, target_crs, ratio=0.5, aoi_id=0, aoi_size=36):
+def get_joined_gdf(aoi_df, capture_gdf, width_m, height_m, crs_transformer, target_crs, ratio=0.5, aoi_id=0, aoi_size=36):
     # Expand the aoi 
     selected_polygon = []
     t_east, t_north = crs_transformer.transform(aoi_df.iloc[aoi_id]['Longitude'], aoi_df.iloc[aoi_id]['Latitude'])
