@@ -3,7 +3,7 @@ import pandas as pd
 import geopandas as gpd
 import micasense.imageset as imageset
 
-def metashape_pipeline(root_folder, doc, images, panels, target_crs, chunk_label=None):
+def metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=None):
     chunk = doc.addChunk()
     if chunk_label:
         chunk.label = chunk_label
@@ -56,7 +56,11 @@ def metashape_pipeline(root_folder, doc, images, panels, target_crs, chunk_label
         ghosting_filter=False,                  # Default is off
         projection=ortho_projection
     )
-    chunk.exportReport(path=os.path.join(root_folder, "Metashape", f"{chunk.label}_report.pdf"))
+    
+    # Export a PDF report for the chunk
+    if not os.path.exists(os.path.join(result_folder, "report")):
+        os.makedirs(os.path.join(result_folder, "report"))
+    chunk.exportReport(path=os.path.join(result_folder, "report", f"{chunk.label}_report.pdf"))
     doc.save()
     print(f"Pipeline complete for {chunk.label}")
 
