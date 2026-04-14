@@ -42,37 +42,47 @@ def metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_lab
     # Add survey images and panel images
     chunk.addPhotos(images)
     chunk.addPhotos(panels)
+    doc.save()
 
-    # 1. Align Photos
-    # (0- Highest, 1- High, 2- Medium, 4- Low, 8- Lowest)
-    chunk.matchPhotos(downscale=1, generic_preselection=True, reference_preselection=True)
-    chunk.alignCameras()
-
-    # 2. Define the Coordinate System
-    crs = Metashape.CoordinateSystem(target_crs)
-
-    # 3. Reflectance Calibration
+    # 1. Reflectance Calibration
     chunk.locateReflectancePanels()
     chunk.calibrateReflectance(use_reflectance_panels=True, use_sun_sensor=True)
+    doc.save()
+
+    # 2. Align Photos
+    # (0- Highest, 1- High, 2- Medium, 4- Low, 8- Lowest)
+    chunk.matchPhotos(
+        downscale=1, 
+        generic_preselection=True, 
+        reference_preselection=True, 
+        filter_stationary_points=True,
+        reference_preselection_mode=Metashape.ReferencePreselectionSource,
+    )
+    chunk.alignCameras()
+    doc.save()
+
+
+    # 3. Define the Coordinate System
+    crs = Metashape.CoordinateSystem(target_crs)
 
     # 4. Camera Optimization
     chunk.optimizeCameras(fit_f=True, fit_cx=True, fit_cy=True, fit_b1=False, fit_b2=False, fit_k1=True,
                           fit_k2=True, fit_k3=True, fit_k4=False, fit_p1=True, fit_p2=True)
+    doc.save()
 
-    # Check if alignment actually happened
-    if not chunk.tie_points or len(chunk.tie_points.points) == 0:
-        print(f"FAILED: No tie points for {chunk_label}. Skipping...")
-        return
 
     # 5. Point Cloud (Depth Maps first, then Dense Cloud)
     # (1- Ultra high, 2- High, 4- Medium, 8- Low, 16- Lowest)
     chunk.buildDepthMaps(downscale=2, filter_mode=Metashape.AggressiveFiltering)
+    doc.save()
+
     chunk.buildPointCloud(
         source_data=Metashape.DepthMapsData,
-        point_colors=True,
         point_confidence=True,
+        point_colors=True,
         keep_depth=True
     )
+    doc.save()
 
     # 6. DEM (Digital Elevation Model)
     ortho_projection = Metashape.OrthoProjection()
