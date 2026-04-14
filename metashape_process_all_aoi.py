@@ -47,7 +47,12 @@ if __name__ == "__main__":
         panels = glob.glob(os.path.join(root_folder, "Panel", f"*.tif"))
 
         start_time = time.time()
-        metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=f"AOI_{aoi_id}_ratio_{ratio:.2f}")
+        try:
+            metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=f"AOI_{aoi_id}_ratio_{ratio:.2f}")
+        except Exception as e:
+            doc.save()
+            with open(os.path.join(result_folder, f"error_log.txt"), "a") as log_file:
+                log_file.write(f"Error occurred while processing AOI {aoi_id}: {e}\n")
         process_time = time.time() - start_time
         recorded_info["id"].append(aoi_id)
         recorded_info["num_captures"].append(len(joined_gdf))

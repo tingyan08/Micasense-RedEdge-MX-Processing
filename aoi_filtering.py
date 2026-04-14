@@ -1,4 +1,4 @@
-import os, cv2
+import os
 import pandas as pd
 import geopandas as gpd
 from micasense import capture, imageutils
