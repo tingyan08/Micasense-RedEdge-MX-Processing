@@ -34,7 +34,7 @@ class ImageSet(ImageSet):
 
 
 
-def metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=None):
+def metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=None, export=False):
     chunk = doc.addChunk()
     if chunk_label:
         chunk.label = chunk_label
@@ -103,33 +103,36 @@ def metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_lab
         projection=ortho_projection
     )
 
-    # 8. Export the orthomosaic
-    ortho_output_dir = os.path.join(result_folder, "Orthomosaics")
-    if not os.path.exists(ortho_output_dir):
-        os.makedirs(ortho_output_dir)
-    if chunk.orthomosaic:
-        orthomosaic_path = os.path.join(ortho_output_dir, f"{chunk.label}_orthomosaic.tif")
-        
-        chunk.exportRaster(
-            path=orthomosaic_path,
-            format=Metashape.RasterFormatTiles, # Standard for large GeoTIFFs
-            image_format=Metashape.ImageFormatTIFF,
-            projection=ortho_projection,
-            save_alpha=True
-        )
-        print(f"Orthomosaic exported to: {orthomosaic_path}")
-    else:
-        print(f"Error: No orthomosaic found in chunk {chunk.label}. Build it first.")
+    doc.save()
 
-    # 9. Export Individual Orthophotos ---
-    rectified_output_dir = os.path.join(result_folder, "Orthorectified", chunk.label)
-    if not os.path.exists(rectified_output_dir):
-        os.makedirs(rectified_output_dir)
-    chunk.exportOrthophotos(
-        path=os.path.join(rectified_output_dir, "{filename}.tif"),
-        projection=ortho_projection,
-    )
-    print(f"Individual orthophotos exported to: {rectified_output_dir}")
+    if export:
+        # 8. Export the orthomosaic
+        ortho_output_dir = os.path.join(result_folder, "Orthomosaics")
+        if not os.path.exists(ortho_output_dir):
+            os.makedirs(ortho_output_dir)
+        if chunk.orthomosaic:
+            orthomosaic_path = os.path.join(ortho_output_dir, f"{chunk.label}_orthomosaic.tif")
+            
+            chunk.exportRaster(
+                path=orthomosaic_path,
+                format=Metashape.RasterFormatTiles, # Standard for large GeoTIFFs
+                image_format=Metashape.ImageFormatTIFF,
+                projection=ortho_projection,
+                save_alpha=True
+            )
+            print(f"Orthomosaic exported to: {orthomosaic_path}")
+        else:
+            print(f"Error: No orthomosaic found in chunk {chunk.label}. Build it first.")
+
+        # 9. Export Individual Orthophotos ---
+        rectified_output_dir = os.path.join(result_folder, "Orthorectified", chunk.label)
+        if not os.path.exists(rectified_output_dir):
+            os.makedirs(rectified_output_dir)
+        chunk.exportOrthophotos(
+            path=os.path.join(rectified_output_dir, "{filename}.tif"),
+            projection=ortho_projection,
+        )
+        print(f"Individual orthophotos exported to: {rectified_output_dir}")
 
     
     # Export a PDF report for the chunk

@@ -48,7 +48,7 @@ if __name__ == "__main__":
             panels = glob.glob(os.path.join(root_folder, "Panel", f"*.tif"))
 
             start_time = time.time()
-            metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=f"AOI_{aoi_id}_ratio_{ratio:.2f}")
+            metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=f"AOI_{aoi_id}_ratio_{ratio:.2f}", export=True)
             process_time = time.time() - start_time
             recorded_info["id"].append(aoi_id)
             recorded_info["num_captures"].append(len(joined_gdf))
