@@ -45,7 +45,7 @@ def compute_vi(vi_name, b1, b2, b3, b4, b5):
 
 if __name__ == "__main__":
     parent_folder = "Data"
-    exp = "091425_Wallpe"
+    exp = "081525_Wallpe"
     aoi_file = "wallpe_aoi_square.geojson"
 
     root_folder = os.path.join(parent_folder, exp)
@@ -88,7 +88,8 @@ if __name__ == "__main__":
     print(f"Opened project: {psx_path}")
     print(f"Found {len(doc.chunks)} chunk(s).\n")
 
-    records = []
+    records_vi_masked = []
+    records_vi_raw = []
 
     for chunk in doc.chunks:
         # Parse AOI id from label, e.g. "AOI_5_ratio_0.05" -> 5
@@ -171,10 +172,17 @@ if __name__ == "__main__":
         total_valid = int((~nodata_mask).sum())
         print(f"  Vegetation pixels after soil removal: {int(veg_mask.sum())} / {total_valid}")
 
+
         row = {"aoi_id": aoi_id, "latitude": lat, "longitude": lon,
                "total_pixels": total_valid, "vegetation_pixels": int(veg_mask.sum())}
+        
+        row_raw = {"aoi_id": aoi_id, "latitude": lat, "longitude": lon,
+                   "total_pixels": total_valid, "vegetation_pixels": total_valid}
 
         # --- Compute each VI from bands, save unmasked and masked GeoTIFFs ---
+        # For the unmasked version, all valid pixels are included (soil pixels have NaN values).
+        # For the masked version, soil/background pixels are set to NaN, so stats reflect only vegetation pixels.
+        # Save both versions for potential future use, and export both stats to compare the impact of soil removal.
         for vi_name in vi_names:
             vi_path        = os.path.join(vi_folder,        f"{chunk.label}_{vi_name}.tif")
             vi_masked_path = os.path.join(vi_masked_folder, f"{chunk.label}_{vi_name}_masked.tif")
@@ -186,19 +194,31 @@ if __name__ == "__main__":
             with rasterio.open(vi_path, "w", **vi_profile) as dst:
                 dst.write(data.astype(np.float32), 1)
 
+            vi_key = vi_name.lower()
+            if len(data[~nodata_mask]) > 0:
+                row_raw[f"{vi_key}_mean"] = float(np.nanmean(data))
+                row_raw[f"{vi_key}_std"]  = float(np.nanstd(data))
+                row_raw[f"{vi_key}_min"]  = float(np.nanmin(data))
+                row_raw[f"{vi_key}_max"]  = float(np.nanmax(data))
+            else:
+                row_raw[f"{vi_key}_mean"] = np.nan
+                row_raw[f"{vi_key}_std"]  = np.nan
+                row_raw[f"{vi_key}_min"]  = np.nan
+                row_raw[f"{vi_key}_max"]  = np.nan
+
+            
+
             # Masked: soil/background pixels set to NaN
             data_masked = data.copy()
             data_masked[~veg_mask] = np.nan
             with rasterio.open(vi_masked_path, "w", **vi_profile) as dst:
                 dst.write(data_masked.astype(np.float32), 1)
 
-            valid = data_masked[np.isfinite(data_masked)]
-            vi_key = vi_name.lower()
-            if len(valid) > 0:
-                row[f"{vi_key}_mean"] = float(np.mean(valid))
-                row[f"{vi_key}_std"]  = float(np.std(valid))
-                row[f"{vi_key}_min"]  = float(np.min(valid))
-                row[f"{vi_key}_max"]  = float(np.max(valid))
+            if len(data_masked) > 0:
+                row[f"{vi_key}_mean"] = float(np.nanmean(data_masked))
+                row[f"{vi_key}_std"]  = float(np.nanstd(data_masked))
+                row[f"{vi_key}_min"]  = float(np.nanmin(data_masked))
+                row[f"{vi_key}_max"]  = float(np.nanmax(data_masked))
             else:
                 row[f"{vi_key}_mean"] = np.nan
                 row[f"{vi_key}_std"]  = np.nan
@@ -207,12 +227,19 @@ if __name__ == "__main__":
 
             print(f"  {vi_name}: mean={row[f'{vi_key}_mean']:.4f}  std={row[f'{vi_key}_std']:.4f}")
 
-        records.append(row)
+        records_vi_masked.append(row)
+        records_vi_raw.append(row_raw)
         print()
 
     # Build and save summary dataframe
-    df = pd.DataFrame(records).sort_values("aoi_id").reset_index(drop=True)
-    out_csv = os.path.join(result_folder, f"{exp}_vi_stats_AOI.csv")
+    df = pd.DataFrame(records_vi_masked).sort_values("aoi_id").reset_index(drop=True)
+    out_csv = os.path.join(result_folder, f"{exp}_aoi_vi_stats_no_soil.csv")
     df.to_csv(out_csv, index=False)
     print(f"Saved VI stats -> {out_csv}")
+    print("Done.")
+
+    df_raw = pd.DataFrame(records_vi_raw).sort_values("aoi_id").reset_index(drop=True)
+    out_csv_raw = os.path.join(result_folder, f"{exp}_aoi_vi_stats_raw.csv")
+    df_raw.to_csv(out_csv_raw, index=False)
+    print(f"Saved unmasked VI stats -> {out_csv_raw}")
     print("Done.")
