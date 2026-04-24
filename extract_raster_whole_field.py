@@ -39,13 +39,25 @@ def compute_vi(vi_name, b1, b2, b3, b4, b5):
             return np.where(denom > 0, num / denom, np.nan)
         elif vi_name == "GRVI":
             return (b2 - b3) / (b2 + b3)
+        elif vi_name == "Red":
+            return b3
+        elif vi_name == "Green":
+            return b2
+        elif vi_name == "Blue":
+            return b1
+        elif vi_name == "RedEdge":
+            return b4
+        elif vi_name == "NIR":
+            return b5
+        elif vi_name == "OSAVI":
+            return 1.16 * (b5 - b3) / (b5 + b3 + 0.16)
         else:
             raise ValueError(f"Unknown VI: {vi_name}")
 
 
 if __name__ == "__main__":
     parent_folder = "Data"
-    exp = "091425_Wallpe"
+    exp = "081525_Wallpe"
     aoi_file = "wallpe_aoi_square.geojson"
 
     root_folder = os.path.join(parent_folder, exp)
@@ -55,7 +67,7 @@ if __name__ == "__main__":
     ortho_folder = os.path.join(result_folder, "Orthomosaics")
 
     # Band order for MicaSense RedEdge-M: B1=Blue, B2=Green, B3=Red, B4=RedEdge, B5=NIR
-    vi_names = ["NDVI", "GNDVI", "SAVI", "NDRE", "TVI", "ExG", "SR", "PSRI", "G", "RDVI", "MCARI2", "GRVI"]
+    vi_names = ["NDVI", "GNDVI", "SAVI", "NDRE", "TVI", "ExG", "SR", "PSRI", "G", "RDVI", "MCARI2", "GRVI", "Red", "Green", "Blue", "RedEdge", "NIR", "OSAVI"]
 
     # Soil/background removal thresholds (applied using reflectance-normalized bands).
     # Pixels are removed (set to NaN) if HSV 'value' < hsv_v_threshold OR RDVI < rdvi_threshold.
@@ -168,10 +180,11 @@ if __name__ == "__main__":
         total_valid = int((~nodata_mask).sum())
         print(f"  Vegetation pixels after soil removal: {int(veg_mask.sum())} / {total_valid}")
 
-        row = {"aoi_id": aoi_id, "latitude": lat, "longitude": lon,
-               "total_pixels": total_valid, "vegetation_pixels": int(veg_mask.sum())}
+        row = {"aoi_id": aoi_id, "latitude": lat, "longitude": lon, "canopy_cover": float(veg_mask.sum()) / total_valid,
+                "total_pixels": total_valid, "vegetation_pixels": int(veg_mask.sum())
+}
         
-        row_raw = {"aoi_id": aoi_id, "latitude": lat, "longitude": lon,
+        row_raw = {"aoi_id": aoi_id, "latitude": lat, "longitude": lon, "canopy_cover": 1,
                    "total_pixels": total_valid, "vegetation_pixels": total_valid}
 
         # --- Compute each VI from bands, save unmasked and masked GeoTIFFs ---
@@ -228,13 +241,13 @@ if __name__ == "__main__":
 
     # Build and save summary dataframe
     df = pd.DataFrame(records_vi_masked).sort_values("aoi_id").reset_index(drop=True)
-    out_csv = os.path.join(result_folder, f"{exp}_whole_vi_stats_no_soil.csv")
+    out_csv = os.path.join("./features", f"{exp}_whole_vi_stats_no_soil.csv")
     df.to_csv(out_csv, index=False)
     print(f"Saved VI stats -> {out_csv}")
     print("Done.")
 
     df_raw = pd.DataFrame(records_vi_raw).sort_values("aoi_id").reset_index(drop=True)
-    out_csv_raw = os.path.join(result_folder, f"{exp}_whole_vi_stats_raw.csv")
+    out_csv_raw = os.path.join("./features", f"{exp}_whole_vi_stats_raw.csv")
     df_raw.to_csv(out_csv_raw, index=False)
     print(f"Saved unmasked VI stats -> {out_csv_raw}")
     print("Done.")
