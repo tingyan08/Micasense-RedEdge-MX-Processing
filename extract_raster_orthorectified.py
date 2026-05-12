@@ -109,10 +109,11 @@ if __name__ == "__main__":
     aoi_gdf = gpd.read_file(os.path.join(parent_folder, aoi_file))
     aoi_gdf = aoi_gdf.set_index("id")
 
-    records_vi_masked = []
-    records_vi_raw = []
+    
 
     for exp in exps:
+        records_vi_masked = []
+        records_vi_raw = []
         for aoi_id, row in aoi_gdf.iterrows():
             orthorectified_folder = os.path.join(parent_folder, exp, "Metashape", "AOI_results", "Orthorectified", f"AOI_{aoi_id}_ratio_0.05")
             polygon = row.geometry
@@ -168,7 +169,8 @@ if __name__ == "__main__":
 
                     # RDVI for soil removal (reflectance scale, denominator same units)
                     denom = np.sqrt(np.maximum(b5 + b3, 0))
-                    rdvi_inline = np.where(denom > 0, (b5 - b3) / denom, np.nan)
+                    with np.errstate(divide="ignore", invalid="ignore"):
+                        rdvi_inline = np.where(denom > 0, (b5 - b3) / denom, np.nan)
 
                     # print(f"  RDVI range: {np.nanmin(rdvi_inline):.4f} – {np.nanmax(rdvi_inline):.4f}")
 

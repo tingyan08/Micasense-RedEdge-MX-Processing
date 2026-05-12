@@ -36,7 +36,7 @@ if __name__ == "__main__":
         recorded_info = {"id": [], "num_captures": [], "process_time": []}
         aoi_range = aoi_df['Point_ID'].unique()
         
-        for aoi_id in aoi_range[8:]:
+        for aoi_id in aoi_range:
             try:
                 joined_gdf = get_joined_gdf(aoi_df, capture_gdf, width_m, height_m, transformer, target_crs, ratio=ratio, aoi_id=aoi_id, aoi_size=36)
                 print(f"There are {len(joined_gdf)} captures in the AOI {aoi_id} with ratio {ratio}.")
