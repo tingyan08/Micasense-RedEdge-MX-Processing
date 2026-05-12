@@ -6,9 +6,9 @@ from metashape import metashape_pipeline, get_capture_gdf
 
 
 if __name__ == "__main__":
-    parent_folder = "Data"
+    parent_folder = "Data/Wallpe"
     # exp = "091425_Wallpe"
-    for exp in ["081525_Wallpe", "083025_Wallpe", "091025_Wallpe", "091425_Wallpe"]:
+    for exp in ["082525_Wallpe"]:
         root_folder = os.path.join(parent_folder, exp)
         result_folder = os.path.join(root_folder, "Metashape", "whole_field")
         if not os.path.exists(result_folder):

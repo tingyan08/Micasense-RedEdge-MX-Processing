@@ -8,9 +8,9 @@ from metashape import metashape_pipeline, get_capture_gdf
 
 
 if __name__ == "__main__":
-    parent_folder = "Data"
+    parent_folder = "Data/Wallpe"
     # exp = "081525_Wallpe" 
-    for exp in ["081525_Wallpe", "083025_Wallpe", "091025_Wallpe", "091425_Wallpe"]:
+    for exp in ["082525_Wallpe"]:
         aoi_file = "wallpe_aoi.csv" if "Wallpe" in exp else "PPAC_B3_aoi.csv"
         root_folder = os.path.join(parent_folder, exp)
         result_folder = os.path.join(root_folder, "Metashape", "AOI_results")
@@ -35,24 +35,29 @@ if __name__ == "__main__":
 
         recorded_info = {"id": [], "num_captures": [], "process_time": []}
         aoi_range = aoi_df['Point_ID'].unique()
-        for aoi_id in aoi_range:
-            joined_gdf = get_joined_gdf(aoi_df, capture_gdf, width_m, height_m, transformer, target_crs, ratio=ratio, aoi_id=aoi_id, aoi_size=36)
-            print(f"There are {len(joined_gdf)} captures in the AOI {aoi_id} with ratio {ratio}.")
-
-            doc = Metashape.Document()
+        
+        for aoi_id in aoi_range[8:]:
             try:
-                doc.open(os.path.join(result_folder, f"{exp}_aoi.psx"))
-            except:
-                doc.save(os.path.join(result_folder, f"{exp}_aoi.psx"))
-            images = [os.path.join(root_folder, "Images", f"{i}_{j}.tif") for i in joined_gdf['image_name'].tolist() for j in range(1, 6)]
-            panels = glob.glob(os.path.join(root_folder, "Panel", f"*.tif"))
+                joined_gdf = get_joined_gdf(aoi_df, capture_gdf, width_m, height_m, transformer, target_crs, ratio=ratio, aoi_id=aoi_id, aoi_size=36)
+                print(f"There are {len(joined_gdf)} captures in the AOI {aoi_id} with ratio {ratio}.")
 
-            start_time = time.time()
-            metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=f"AOI_{aoi_id}_ratio_{ratio:.2f}", export=True)
-            process_time = time.time() - start_time
-            recorded_info["id"].append(aoi_id)
-            recorded_info["num_captures"].append(len(joined_gdf))
-            recorded_info["process_time"].append(process_time)
+                doc = Metashape.Document()
+                try:
+                    doc.open(os.path.join(result_folder, f"{exp}_aoi.psx"))
+                except:
+                    doc.save(os.path.join(result_folder, f"{exp}_aoi.psx"))
+                images = [os.path.join(root_folder, "Images", f"{i}_{j}.tif") for i in joined_gdf['image_name'].tolist() for j in range(1, 6)]
+                panels = glob.glob(os.path.join(root_folder, "Panel", f"*.tif"))
+
+                start_time = time.time()
+                metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=f"AOI_{aoi_id}_ratio_{ratio:.2f}", export=True)
+                process_time = time.time() - start_time
+                recorded_info["id"].append(aoi_id)
+                recorded_info["num_captures"].append(len(joined_gdf))
+                recorded_info["process_time"].append(process_time)
+            except Exception as e:
+                print(f"Error processing AOI {aoi_id}: {e}")
+                continue
 
         results_df = pd.DataFrame(recorded_info)
         results_df.to_csv(os.path.join(result_folder, f"processing_results_each_aoi.csv"), index=False)

@@ -56,8 +56,8 @@ def compute_vi(vi_name, b1, b2, b3, b4, b5):
 
 
 if __name__ == "__main__":
-    parent_folder = "Data"
-    exp = "081525_Wallpe"
+    parent_folder = "Data/Wallpe"
+    exp = "082525_Wallpe"
     aoi_file = "wallpe_aoi_square.geojson"
 
     root_folder = os.path.join(parent_folder, exp)
@@ -115,6 +115,16 @@ if __name__ == "__main__":
 
         if chunk.orthomosaic is None:
             print(f"  Skipping {chunk.label}: no orthomosaic found.\n")
+            row_nan = {"aoi_id": aoi_id, "latitude": np.nan, "longitude": np.nan, "canopy_cover": np.nan,
+                   "total_pixels": 0, "vegetation_pixels": 0}
+            for vi_name in vi_names:
+                vi_key = vi_name.lower()
+                row_nan[f"{vi_key}_mean"] = np.nan
+                row_nan[f"{vi_key}_std"]  = np.nan
+                row_nan[f"{vi_key}_min"]  = np.nan
+                row_nan[f"{vi_key}_max"]  = np.nan
+            records_vi_masked.append(row_nan)
+            records_vi_raw.append(row_nan)
             continue
 
         if aoi_id not in aoi_gdf.index:
