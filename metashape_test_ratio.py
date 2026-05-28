@@ -8,9 +8,10 @@ from metashape import metashape_pipeline, get_capture_gdf
 
 
 if __name__ == "__main__":
-    parent_folder = "Data"
-    exp = "090523_PPAC_B3"
-    aoi_file = "PPAC_B3_aoi.csv" # PPAC_B3_aoi.csv or wallpe_aoi.csv
+    parent_folder = "Data/PPAC-B3"
+    exp = "061724_PPAC-B3"
+    aoi_size = 12
+    aoi_file = "PPAC-B3_aoi.csv" # PPAC-B3_aoi.csv or wallpe_aoi.csv
     root_folder = os.path.join(parent_folder, exp)
     result_folder = os.path.join(root_folder, "Metashape", "ratio_test")
     if not os.path.exists(result_folder):
@@ -33,7 +34,7 @@ if __name__ == "__main__":
 
     recorded_info = {"ratio": [], "num_captures": [], "process_time": []}
     for ratio in np.arange(0.05, 0.51, 0.05):
-        joined_gdf = get_joined_gdf(aoi_df, capture_gdf, width_m, height_m, transformer, target_crs, ratio=ratio, aoi_id=aoi_id, aoi_size=36)
+        joined_gdf = get_joined_gdf(aoi_df, capture_gdf, width_m, height_m, transformer, target_crs, ratio=ratio, aoi_id=aoi_id, aoi_size=aoi_size)
         print(f"There are {len(joined_gdf)} captures in the AOI {aoi_id} with ratio {ratio}.")
 
         doc = Metashape.Document()

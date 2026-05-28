@@ -8,16 +8,21 @@ from metashape import metashape_pipeline, get_capture_gdf
 
 
 if __name__ == "__main__":
-    parent_folder = "Data/Wallpe"
+    field = "PPAC-B3"
+    parent_folder = f"Data/{field}"
+    aoi_size = 36 if "Wallpe" in parent_folder else 12
+    ratio = 0.05
+
+    print(f"Running in {field} field. Using AOI size: {aoi_size} meters")
     # exp = "081525_Wallpe" 
-    for exp in ["082525_Wallpe"]:
-        aoi_file = "wallpe_aoi.csv" if "Wallpe" in exp else "PPAC_B3_aoi.csv"
+    # for exp in ["061724_PPAC-B3"]:
+    for exp in ["061724_PPAC-B3", "071124_PPAC-B3", "072324_PPAC-B3", "080324_PPAC-B3", "081324_PPAC-B3", "081924_PPAC-B3", "090124_PPAC-B3", "090824_PPAC-B3"]:
+        aoi_file = "wallpe_aoi.csv" if "Wallpe" in exp else "PPAC-B3_aoi.csv"
         root_folder = os.path.join(parent_folder, exp)
         result_folder = os.path.join(root_folder, "Metashape", "AOI_results")
         if not os.path.exists(result_folder):
             os.makedirs(result_folder)
 
-        ratio = 0.05
 
         gsd_cm, H, W = calculate_characteristics(root_folder)
         width_m = gsd_cm / 100 * W
@@ -38,7 +43,7 @@ if __name__ == "__main__":
         
         for aoi_id in aoi_range:
             try:
-                joined_gdf = get_joined_gdf(aoi_df, capture_gdf, width_m, height_m, transformer, target_crs, ratio=ratio, aoi_id=aoi_id, aoi_size=36)
+                joined_gdf = get_joined_gdf(aoi_df, capture_gdf, width_m, height_m, transformer, target_crs, ratio=ratio, aoi_id=aoi_id, aoi_size=aoi_size)
                 print(f"There are {len(joined_gdf)} captures in the AOI {aoi_id} with ratio {ratio}.")
 
                 doc = Metashape.Document()
@@ -50,7 +55,7 @@ if __name__ == "__main__":
                 panels = glob.glob(os.path.join(root_folder, "Panel", f"*.tif"))
 
                 start_time = time.time()
-                metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=f"AOI_{aoi_id}_ratio_{ratio:.2f}", export=True)
+                metashape_pipeline(result_folder, doc, images, panels, target_crs, chunk_label=f"AOI_{aoi_id}_ratio_{ratio:.2f}", export=False)
                 process_time = time.time() - start_time
                 recorded_info["id"].append(aoi_id)
                 recorded_info["num_captures"].append(len(joined_gdf))
@@ -61,3 +66,5 @@ if __name__ == "__main__":
 
         results_df = pd.DataFrame(recorded_info)
         results_df.to_csv(os.path.join(result_folder, f"processing_results_each_aoi.csv"), index=False)
+
+

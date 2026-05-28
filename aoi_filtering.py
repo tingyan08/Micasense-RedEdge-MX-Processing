@@ -26,7 +26,7 @@ def calculate_characteristics(root_folder):
     print(f"Calculated AGL: {agl:.2f} cm")
 
     # Get aligned image metadata to confirm altitude after processing using first five images
-    imageNames = list(Path(img_dir).glob("IMG_*.tif"))[:5]
+    imageNames = sorted(list(Path(img_dir).glob("IMG_*.tif")))[:5]
     first_capture = capture.Capture.from_filelist(imageNames)
     reference_band = 2  # use the Red band as the reference
     warp_matrices = first_capture.get_warp_matrices(ref_index=reference_band)
@@ -51,7 +51,7 @@ def get_joined_gdf(aoi_df, capture_gdf, width_m, height_m, crs_transformer, targ
     # Expand the aoi 
     selected_polygon = []
     t_east, t_north = crs_transformer.transform(aoi_df.iloc[aoi_id]['Longitude'], aoi_df.iloc[aoi_id]['Latitude'])
-    expanded_poly = box(t_east - aoi_size/2 - (0.5 - ratio) * width_m, t_north - aoi_size/2 -(0.5 - ratio) * height_m, 
+    expanded_poly = box(t_east - aoi_size/2 - (0.5 - ratio) * width_m, t_north - aoi_size/2 - (0.5 - ratio) * height_m, 
                         t_east + aoi_size/2 + (0.5 - ratio) * width_m, t_north + aoi_size/2 + (0.5 - ratio) * height_m)
     selected_polygon.append({"id": 0, "polygon": expanded_poly, "center": (t_east, t_north)})
     
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     for i, row in area_of_interest.iterrows():
         t_east, t_north = transformer.transform(row['Longitude'], row['Latitude'])
         t_poly = box(t_east - aoi_size/2, t_north - aoi_size/2, t_east + aoi_size/2, t_north + aoi_size/2)
-        expanded_poly = box(t_east - aoi_size/2 - (0.5 - ratio) * width_m, t_north - aoi_size/2 -(0.5 - ratio) * height_m, 
+        expanded_poly = box(t_east - aoi_size/2 - (0.5 - ratio) * width_m, t_north - aoi_size/2 - (0.5 - ratio) * height_m, 
                             t_east + aoi_size/2 + (0.5 - ratio) * width_m, t_north + aoi_size/2 + (0.5 - ratio) * height_m)
         selected_polygon.append({"id": i, "polygon": expanded_poly, "center": (t_east, t_north)})
     

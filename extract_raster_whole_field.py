@@ -56,9 +56,13 @@ def compute_vi(vi_name, b1, b2, b3, b4, b5):
 
 
 if __name__ == "__main__":
-    parent_folder = "Data/Wallpe"
-    exps = ["080625_Wallpe", "081325_Wallpe", "081525_Wallpe", "082525_Wallpe", "083025_Wallpe", "091025_Wallpe", "091425_Wallpe"]
-    aoi_file = "wallpe_aoi_square.geojson"
+    field = "PPAC-B3"
+    parent_folder = f"Data/{field}"
+    if field == "Wallpe":
+        exps = ["080625_Wallpe", "081325_Wallpe", "081525_Wallpe", "082525_Wallpe", "083025_Wallpe", "091025_Wallpe", "091425_Wallpe"]
+    else:
+        exps = ["061724_PPAC-B3", "071124_PPAC-B3", "072324_PPAC-B3", "080324_PPAC-B3", "081324_PPAC-B3", "081924_PPAC-B3", "090124_PPAC-B3", "090824_PPAC-B3"]
+    aoi_file = f"{field}_aoi_square.geojson"
 
     for exp in exps:
         root_folder = os.path.join(parent_folder, exp)
@@ -248,13 +252,13 @@ if __name__ == "__main__":
 
         # Build and save summary dataframe
         df = pd.DataFrame(records_vi_masked).sort_values("aoi_id").reset_index(drop=True)
-        out_csv = os.path.join("./features", f"{exp}_whole_no_soil.csv")
+        out_csv = os.path.join(f"./features/{field}", f"{exp}_whole_no_soil.csv")
         df.to_csv(out_csv, index=False)
         print(f"Saved VI stats -> {out_csv}")
         print("Done.")
 
         df_raw = pd.DataFrame(records_vi_raw).sort_values("aoi_id").reset_index(drop=True)
-        out_csv_raw = os.path.join("./features", f"{exp}_whole_raw.csv")
+        out_csv_raw = os.path.join(f"./features/{field}", f"{exp}_whole_raw.csv")
         df_raw.to_csv(out_csv_raw, index=False)
         print(f"Saved unmasked VI stats -> {out_csv_raw}")
         print("Done.")
