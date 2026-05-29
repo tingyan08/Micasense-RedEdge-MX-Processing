@@ -77,7 +77,7 @@ if __name__ == "__main__":
         # Soil/background removal thresholds (applied using reflectance-normalized bands).
         # Pixels are removed (set to NaN) if HSV 'value' < hsv_v_threshold OR RDVI < rdvi_threshold.
         hsv_v_threshold = 0.05   # HSV value = max(R, G, B) in 0–1 reflectance space
-        rdvi_threshold  = 0.10   # RDVI threshold
+        rdvi_threshold  = 0.15 if field == "PPAC-B3" else 0.10  # RDVI threshold (higher for PPAC-B3 due to more exposed soil)
 
         utm_crs = "EPSG:32616"
         wgs84_crs = "EPSG:4326"

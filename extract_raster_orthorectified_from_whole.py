@@ -112,7 +112,7 @@ if __name__ == "__main__":
     # Soil/background removal thresholds (applied using reflectance-normalized bands).
     # Pixels are removed (set to NaN) if HSV 'value' < hsv_v_threshold OR RDVI < rdvi_threshold.
     hsv_v_threshold = 0.05   # HSV value = max(R, G, B) in 0–1 reflectance space
-    rdvi_threshold  = 0.10   # RDVI threshold
+    rdvi_threshold  = 0.15 if field == "PPAC-B3" else 0.10  # RDVI threshold
 
     utm_crs = "EPSG:32616"
     wgs84_crs = "EPSG:4326"
@@ -162,6 +162,7 @@ if __name__ == "__main__":
         
         
         aoi_range = aoi_df['Point_ID'].unique()
+        
 
         for aoi_id in sorted(aoi_range):
             # For each AOI, find all orthophotos that intersect it, compute VIs, and aggregate stats.
@@ -232,13 +233,16 @@ if __name__ == "__main__":
                     data_masked[~veg_mask] = np.nan
                     _update_acc(acc_masked[vi_name], data_masked)
 
+                row_raw["total_pixels"] = row["total_pixels"]
+                row_raw["vegetation_pixels"] = row["total_pixels"]
+
             # --- Compute stats for this AOI across all orthophotos ---
             for vi_name in vi_names:
                 vi_key = vi_name.lower()
                 row[f"{vi_key}_mean"], row[f"{vi_key}_std"], row[f"{vi_key}_min"], row[f"{vi_key}_max"] = _acc_stats(acc_masked[vi_name])
                 row_raw[f"{vi_key}_mean"], row_raw[f"{vi_key}_std"], row_raw[f"{vi_key}_min"], row_raw[f"{vi_key}_max"] = _acc_stats(acc_raw[vi_name])
 
-            
+    
             records_vi_masked.append(row)
             records_vi_raw.append(row_raw)
             print()
