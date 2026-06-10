@@ -73,23 +73,25 @@ Install Metashape Python API:
 
 ```text
 Data/
-    aoi.csv
-    <experiment_name>/
-        imageSet.json
-        Images/
-            <capture_id>_1.tif
-            <capture_id>_2.tif
-            <capture_id>_3.tif
-            <capture_id>_4.tif
-            <capture_id>_5.tif
-        Panel/
-            IMG_0000_1.tif
-            IMG_0000_2.tif
-            IMG_0000_3.tif
-            IMG_0000_4.tif
-            IMG_0000_5.tif
-        Metashape/
-            <experiment_name>.psx   # created automatically if missing
+    <field_name>
+        <field_name>_aoi.csv
+        vis.qgz
+        <experiment_name>/
+            imageSet.json
+            Images/
+                <capture_id>_1.tif
+                <capture_id>_2.tif
+                <capture_id>_3.tif
+                <capture_id>_4.tif
+                <capture_id>_5.tif
+            Panel/
+                IMG_0000_1.tif
+                IMG_0000_2.tif
+                IMG_0000_3.tif
+                IMG_0000_4.tif
+                IMG_0000_5.tif
+            Metashape/
+                <experiment_name>.psx   # created automatically if missing
 ```
 
 ### Required file details
