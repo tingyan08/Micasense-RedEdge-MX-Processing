@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import rasterio
+from rasterio.features import geometry_mask
 from tqdm import tqdm
 from pyproj import Transformer
 
@@ -102,13 +103,13 @@ if __name__ == "__main__":
     # Soil/background removal thresholds (applied using reflectance-normalized bands).
     # Pixels are removed (set to NaN) if HSV 'value' < hsv_v_threshold OR RDVI < rdvi_threshold.
     hsv_v_threshold = 0.05   # HSV value = max(R, G, B) in 0–1 reflectance space
-    rdvi_threshold  = 0.10   # RDVI threshold
+    rdvi_threshold  = 0.15 if field == "PPAC-B3" else 0.10  # RDVI threshold
 
     utm_crs = "EPSG:32616"
     wgs84_crs = "EPSG:4326"
-    transformer = Transformer.from_crs(utm_crs, wgs84_crs, always_xy=True)
+    utm2wgs_transformer = Transformer.from_crs(utm_crs, wgs84_crs, always_xy=True)
 
-    # Load AOI polygons, indexed by id
+    # Load AOI square polygons, indexed by id
     aoi_gdf = gpd.read_file(os.path.join(parent_folder, aoi_file))
     aoi_gdf = aoi_gdf.set_index("id")
 
@@ -120,7 +121,7 @@ if __name__ == "__main__":
         for aoi_id, row in aoi_gdf.iterrows():
             orthorectified_folder = os.path.join(parent_folder, exp, "Metashape", "AOI_results", "Orthorectified", f"AOI_{aoi_id}_ratio_0.05")
             polygon = row.geometry
-            lon, lat = transformer.transform(polygon.centroid.x, polygon.centroid.y)
+            lon, lat = utm2wgs_transformer.transform(polygon.centroid.x, polygon.centroid.y)
             if not os.path.exists(orthorectified_folder):
                 print(f"  Skipping AOI {aoi_id}: orthorectified folder not found.\n")
                 row_nan = {"aoi_id": aoi_id, "latitude": lat, "longitude": lon, "canopy_cover": np.nan,
@@ -147,13 +148,20 @@ if __name__ == "__main__":
                 acc_raw    = {vi: {"n": 0, "mean": 0.0, "M2": 0.0, "min": np.inf, "max": -np.inf} for vi in vi_names}
                 acc_masked = {vi: {"n": 0, "mean": 0.0, "M2": 0.0, "min": np.inf, "max": -np.inf} for vi in vi_names}
 
-                # Scan all orthophotos for this AOI (there may be multiple if the AOI overlaps multiple chunks), compute VIs, and aggregate stats.
+                # Scan all orthophotos for this AOI (there may be multiple if the AOI overlaps multiple chunks), mask
+                # each one to the AOI square polygon, compute VIs, and aggregate stats.
                 for orth in tqdm(glob.glob(os.path.join(orthorectified_folder, "*.tif")), desc=f"  Processing orthophotos for AOI {aoi_id}", unit="photo"):
-                    # --- Load orthomosaic, mask to polygon, normalize to reflectance ---
+                    # --- Load orthomosaic, mask to AOI square polygon, normalize to reflectance ---
                     with rasterio.open(orth) as src:
                         ortho = src.read()  # (bands, rows, cols)
                         ortho_nodata = src.nodata
-                        ortho_meta = src.meta
+                        transform = src.transform
+                        ortho_crs = src.crs
+
+                    aoi_poly_proj = gpd.GeoSeries([polygon], crs=aoi_gdf.crs).to_crs(ortho_crs).iloc[0]
+                    poly_mask = geometry_mask([aoi_poly_proj], out_shape=ortho.shape[1:], transform=transform, invert=True)
+                    if not poly_mask.any():
+                        continue
 
                     b1 = ortho[0].astype(np.float64) / 32768  # Blue
                     b2 = ortho[1].astype(np.float64) / 32768  # Green
@@ -161,11 +169,14 @@ if __name__ == "__main__":
                     b4 = ortho[3].astype(np.float64) / 32768  # RedEdge
                     b5 = ortho[4].astype(np.float64) / 32768  # NIR
 
-                    # Mark nodata pixels across all bands
-                    nodata_mask = np.zeros_like(b1, dtype=bool)
-                    if ortho_nodata is not None:
-                        for band in ortho:
-                            nodata_mask |= (band == ortho_nodata)
+                    # Mark nodata pixels across all bands. If a 6th (alpha) band is present, use it directly.
+                    if ortho.shape[0] >= 6:
+                        nodata_mask = ortho[5] == 0
+                    else:
+                        nodata_mask = np.zeros_like(b1, dtype=bool)
+                        if ortho_nodata is not None:
+                            for band in ortho:
+                                nodata_mask |= (band == ortho_nodata)
 
                     # HSV 'value' = max(R, G, B) in reflectance space
                     hsv_v = np.maximum(np.maximum(b3, b2), b1)
@@ -175,29 +186,32 @@ if __name__ == "__main__":
                     with np.errstate(divide="ignore", invalid="ignore"):
                         rdvi_inline = np.where(denom > 0, (b5 - b3) / denom, np.nan)
 
-                    # print(f"  RDVI range: {np.nanmin(rdvi_inline):.4f} – {np.nanmax(rdvi_inline):.4f}")
-
                     # Vegetation mask: keep pixels passing both thresholds
                     veg_mask = (
                         (hsv_v >= hsv_v_threshold) &
                         (rdvi_inline >= rdvi_threshold) &
                         ~nodata_mask
                     )
-                    total_valid = int((~nodata_mask).sum())
-                    # print(f"  Vegetation pixels after soil removal: {int(veg_mask.sum())} / {total_valid}")
 
-                    row["total_pixels"] += total_valid
-                    row["vegetation_pixels"] += int(veg_mask.sum())
+                    valid_mask = poly_mask & ~nodata_mask
+                    veg_in_poly = poly_mask & veg_mask
+
+                    row["total_pixels"] += int(valid_mask.sum())
+                    row["vegetation_pixels"] += int(veg_in_poly.sum())
                     row["canopy_cover"] = row["vegetation_pixels"] / row["total_pixels"] if row["total_pixels"] > 0 else 0
 
                     for vi_name in vi_names:
                         data = compute_vi(vi_name, b1, b2, b3, b4, b5)
                         data[nodata_mask] = np.nan
-                        _update_acc(acc_raw[vi_name], data)
 
-                        data_masked = data.copy()
-                        data_masked[~veg_mask] = np.nan
+                        data_in_poly = np.where(poly_mask, data, np.nan)
+                        _update_acc(acc_raw[vi_name], data_in_poly)
+
+                        data_masked = np.where(veg_in_poly, data, np.nan)
                         _update_acc(acc_masked[vi_name], data_masked)
+
+                row_raw["total_pixels"] = row["total_pixels"]
+                row_raw["vegetation_pixels"] = row["total_pixels"]
 
                 # --- Compute stats for this AOI across all orthophotos ---
                 for vi_name in vi_names:
@@ -205,20 +219,23 @@ if __name__ == "__main__":
                     row[f"{vi_key}_mean"], row[f"{vi_key}_std"], row[f"{vi_key}_min"], row[f"{vi_key}_max"] = _acc_stats(acc_masked[vi_name])
                     row_raw[f"{vi_key}_mean"], row_raw[f"{vi_key}_std"], row_raw[f"{vi_key}_min"], row_raw[f"{vi_key}_max"] = _acc_stats(acc_raw[vi_name])
 
-                
+
                 records_vi_masked.append(row)
                 records_vi_raw.append(row_raw)
                 print()
 
         # Build and save summary dataframe
+        out_dir = f"./features/{field}"
+        os.makedirs(out_dir, exist_ok=True)
+
         df = pd.DataFrame(records_vi_masked).sort_values("aoi_id").reset_index(drop=True)
-        out_csv = os.path.join("./features", f"{exp}_orthorectified_no_soil.csv")
+        out_csv = os.path.join(out_dir, f"{exp}_orthorectified_no_soil.csv")
         df.to_csv(out_csv, index=False)
         print(f"Saved VI stats -> {out_csv}")
         print("Done.")
 
         df_raw = pd.DataFrame(records_vi_raw).sort_values("aoi_id").reset_index(drop=True)
-        out_csv_raw = os.path.join("./features", f"{exp}_orthorectified_raw.csv")
+        out_csv_raw = os.path.join(out_dir, f"{exp}_orthorectified_raw.csv")
         df_raw.to_csv(out_csv_raw, index=False)
         print(f"Saved unmasked VI stats -> {out_csv_raw}")
         print("Done.")
