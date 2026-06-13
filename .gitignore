@@ -1,6 +1,5 @@
 Data/
 __pycache__/
-notebook/
 .vscode/
 imageprocessing/
 features/
