@@ -88,7 +88,7 @@ def compute_vi(vi_name, b1, b2, b3, b4, b5):
 
 
 if __name__ == "__main__":
-    field = "PPAC-B3"
+    field = "Wallpe"
     parent_folder = f"Data/{field}"
     if field == "Wallpe":
         exps = ["080625_Wallpe", "081325_Wallpe", "081525_Wallpe", "082525_Wallpe", "083025_Wallpe", "091025_Wallpe", "091425_Wallpe"]
