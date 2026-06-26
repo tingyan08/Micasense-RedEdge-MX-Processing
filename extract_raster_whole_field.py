@@ -1,3 +1,4 @@
+import glob
 import os
 import numpy as np
 import pandas as pd
@@ -197,11 +198,8 @@ def save_results(records_vi_masked, records_vi_raw, out_dir, exp):
 
 if __name__ == "__main__":
     field = "PPAC-B3"
-    parent_folder = f"Data/{field}"
-    if field == "Wallpe":
-        exps = ["080625_Wallpe", "081325_Wallpe", "081525_Wallpe", "082525_Wallpe", "083025_Wallpe", "091025_Wallpe", "091425_Wallpe"]
-    else:
-        exps = ["061724_PPAC-B3", "071124_PPAC-B3", "072324_PPAC-B3", "080324_PPAC-B3", "081324_PPAC-B3", "081924_PPAC-B3", "090124_PPAC-B3", "090824_PPAC-B3"]
+    year = "2021"
+    parent_folder = f"Data/{field}/{year}"
     aoi_file = f"{field}_aoi_square.geojson"
 
     # Band order for MicaSense RedEdge-M: B1=Blue, B2=Green, B3=Red, B4=RedEdge, B5=NIR
@@ -220,8 +218,8 @@ if __name__ == "__main__":
     aoi_gdf = gpd.read_file(os.path.join(parent_folder, aoi_file))
     aoi_gdf = aoi_gdf.set_index("id")
 
-    for exp in exps:
-        root_folder = os.path.join(parent_folder, exp)
+    for root_folder in sorted(glob.glob(os.path.join(parent_folder, f"*_{field}"))):
+        exp = os.path.basename(root_folder)
         result_folder = os.path.join(root_folder, "Metashape", "whole_field")
         vi_folder = os.path.join(result_folder, "Vegetation_Indices")
         vi_masked_folder = os.path.join(result_folder, "Vegetation_Indices_masked")

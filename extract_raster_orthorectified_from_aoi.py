@@ -88,12 +88,9 @@ def compute_vi(vi_name, b1, b2, b3, b4, b5):
 
 
 if __name__ == "__main__":
-    field = "Wallpe"
-    parent_folder = f"Data/{field}"
-    if field == "Wallpe":
-        exps = ["080625_Wallpe", "081325_Wallpe", "081525_Wallpe", "082525_Wallpe", "083025_Wallpe", "091025_Wallpe", "091425_Wallpe"]
-    else:
-        exps = ["061724_PPAC-B3", "071124_PPAC-B3", "072324_PPAC-B3", "080324_PPAC-B3", "081324_PPAC-B3", "081924_PPAC-B3", "090124_PPAC-B3", "090824_PPAC-B3"]
+    field = "PPAC-B3"
+    year = "2021"
+    parent_folder = f"Data/{field}/{year}"
     aoi_file = f"{field}_aoi_square.geojson"
 
     # Band order for MicaSense RedEdge-M: B1=Blue, B2=Green, B3=Red, B4=RedEdge, B5=NIR
@@ -115,7 +112,8 @@ if __name__ == "__main__":
 
     
 
-    for exp in exps:
+    for root_folder in sorted(glob.glob(os.path.join(parent_folder, f"*_{field}"))):
+        exp = os.path.basename(root_folder)
         records_vi_masked = []
         records_vi_raw = []
         for aoi_id, row in aoi_gdf.iterrows():
