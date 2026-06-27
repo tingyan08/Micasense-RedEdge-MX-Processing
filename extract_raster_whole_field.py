@@ -264,11 +264,11 @@ if __name__ == "__main__":
                     chunk, aoi_id, polygon, lat, lon, vi_names, hsv_v_threshold, rdvi_threshold,
                     vi_folder, vi_masked_folder, ortho_folder,
                 )
-                records_vi_masked.append(row)
+                records_vi_masked.append(row)   
                 records_vi_raw.append(row_raw)
                 print()
             except Exception as e:
                 print(f"Error processing AOI {aoi_id}: {e}")
                 continue
 
-        save_results(records_vi_masked, records_vi_raw, f"./features/{field}", exp)
+        save_results(records_vi_masked, records_vi_raw, f"./features/{field}/{year}", exp)

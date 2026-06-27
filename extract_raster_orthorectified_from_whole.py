@@ -293,4 +293,4 @@ if __name__ == "__main__":
                            rows, rows_raw, acc_raw, acc_masked)
 
         records_vi_masked, records_vi_raw = finalize_records(rows, rows_raw, acc_raw, acc_masked, vi_names)
-        save_results(records_vi_masked, records_vi_raw, f"./features/{field}", exp)
+        save_results(records_vi_masked, records_vi_raw, f"./features/{field}/{year}", exp)
