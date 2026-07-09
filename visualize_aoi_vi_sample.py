@@ -18,7 +18,7 @@ def visualize_single_aoi(field, exp, year, aoi_square_gdf, hsv_v_threshold, rdvi
     """RGB / raw RDVI / vegetation-masked RDVI for one AOI square, using one image that fully contains it."""
     parent_folder = f"Data/{field}/{year}"
     orthorectified_folder = os.path.join(parent_folder, exp, "Metashape", "whole_field", "Orthorectified")
-    out_path = f"./sample/{exp}_single_aoi.png"
+    out_path = f"./sample/{exp}_hsv_{hsv_v_threshold}_rdvi_{rdvi_threshold}_single_aoi.png"
 
     # Find an image that fully contains at least one AOI square
     image_name, aoi_id = None, None
@@ -164,7 +164,7 @@ def visualize_image_aoi_localization(field, exp, year, image_name, aoi_square_gd
 if __name__ == "__main__":
     field = "PPAC-B3"
     year = "2021"
-    date = "090721"
+    date = "062421"
     parent_folder = f"Data/{field}/{year}"
     aoi_file = f"{field}_aoi_square.geojson"
 
@@ -174,4 +174,4 @@ if __name__ == "__main__":
     aoi_square_gdf = gpd.read_file(os.path.join(parent_folder, aoi_file)).set_index("id")
 
     visualize_single_aoi(field, f"{date}_PPAC-B3", year, aoi_square_gdf, hsv_v_threshold, rdvi_threshold)
-    visualize_image_aoi_localization(field, f"{date}_PPAC-B3", year, "IMG_0250_1.tif", aoi_square_gdf)
+    visualize_image_aoi_localization(field, f"{date}_PPAC-B3", year, "IMG_0100_1.tif",  aoi_square_gdf)
