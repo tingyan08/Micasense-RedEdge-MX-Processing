@@ -198,8 +198,7 @@ def save_results(records_vi_masked, records_vi_raw, out_dir, exp):
 
 if __name__ == "__main__":
     field = "PPAC-B3"
-    year = "2021"
-    parent_folder = f"Data/{field}/{year}"
+    years = ["2022", "2023"]
     aoi_file = f"{field}_aoi_square.geojson"
 
     # Band order for MicaSense RedEdge-M: B1=Blue, B2=Green, B3=Red, B4=RedEdge, B5=NIR
@@ -214,11 +213,21 @@ if __name__ == "__main__":
     wgs84_crs = "EPSG:4326"
     utm2wgs_transformer = Transformer.from_crs(utm_crs, wgs84_crs, always_xy=True)
 
-    # Load AOI polygons, indexed by id
-    aoi_gdf = gpd.read_file(os.path.join(parent_folder, aoi_file))
-    aoi_gdf = aoi_gdf.set_index("id")
+    # Gather whole-field date folders across the requested years
+    root_folders = sorted(
+        rf
+        for year in years
+        for rf in glob.glob(os.path.join(f"Data/{field}/{year}", f"*_{field}"))
+    )
+    aoi_cache = {}
 
-    for root_folder in sorted(glob.glob(os.path.join(parent_folder, f"*_{field}"))):
+    for root_folder in root_folders:
+        year = root_folder.split(os.sep)[2]      # Data/<field>/<year>/<exp>
+        parent_folder = f"Data/{field}/{year}"
+        if year not in aoi_cache:
+            aoi_cache[year] = gpd.read_file(os.path.join(parent_folder, aoi_file)).set_index("id")
+        aoi_gdf = aoi_cache[year]
+
         exp = os.path.basename(root_folder)
         result_folder = os.path.join(root_folder, "Metashape", "whole_field")
         vi_folder = os.path.join(result_folder, "Vegetation_Indices")
@@ -245,9 +254,11 @@ if __name__ == "__main__":
         # Find the full-field chunk
         chunk = next((c for c in doc.chunks if c.label == "full_field"), None)
         if chunk is None:
-            raise RuntimeError("No chunk labeled 'full_field' found in the project.")
+            print(f"[SKIP] {exp}: no chunk labeled 'full_field' in the project.")
+            continue
         if chunk.orthomosaic is None:
-            raise RuntimeError("The 'full_field' chunk has no orthomosaic. Run metashape_whole_field.py first.")
+            print(f"[SKIP] {exp}: 'full_field' chunk has no orthomosaic (build failed). Skipping.")
+            continue
 
         print(f"Using chunk: {chunk.label}")
         print(f"Found {len(aoi_gdf)} AOI(s) in {aoi_file}.\n")

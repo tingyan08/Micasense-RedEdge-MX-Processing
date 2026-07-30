@@ -7,8 +7,12 @@ from metashape import metashape_pipeline, get_capture_gdf
 
 
 if __name__ == "__main__":
-    parent_folder = "Data/PPAC-B3/2021"
-    for root_folder in sorted(glob.glob(os.path.join(parent_folder, "071421_PPAC-B3"))):
+    parent_folders = ["Data/PPAC-B3/2022", "Data/PPAC-B3/2023"]
+    for root_folder in sorted(
+        rf
+        for parent_folder in parent_folders
+        for rf in glob.glob(os.path.join(parent_folder, "*_PPAC-B3"))
+    ):
         exp = os.path.basename(root_folder)
         try:
             result_folder = os.path.join(root_folder, "Metashape", "whole_field")
